@@ -71,6 +71,7 @@ export default class LazyLog extends Component {
      * Defaults to `false` to download data until completion.
      */
     stream: bool,
+    parentEmitter: bool,
 
     /**
      * Set to `true` to specify that url is a websocket URL.
@@ -309,6 +310,7 @@ export default class LazyLog extends Component {
     const {
       stream: isStream,
       websocket: isWebsocket,
+      parentEmitter: isParentEventEmitter,
       url,
       fetchOptions,
       websocketOptions,
@@ -322,7 +324,12 @@ export default class LazyLog extends Component {
       return stream(url, fetchOptions);
     }
 
-    this.parentEventEmitter.on('newChunk', this.fetchMoreData)
+    if(isParentEventEmitter){
+      this.parentEventEmitter.on('newChunk', this.fetchMoreData)
+      return this.parentEventEmitter;
+    }
+
+    
 
     return request(url, fetchOptions);
   }
@@ -358,7 +365,7 @@ export default class LazyLog extends Component {
       this.emitter.off('update', this.handleUpdate);
       this.emitter.off('end', this.handleEnd);
       this.emitter.off('error', this.handleError);
-      this.parentEmitter.off('new-chunk', this.fetchMoreData);
+      this.emitter.off('new-chunk', this.fetchMoreData);
 
       this.emitter = null;
       this.parentEventEmitter = null;
