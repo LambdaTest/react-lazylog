@@ -77,7 +77,7 @@ export default class LazyLog extends Component {
      * Defaults to `false` to download data until completion.
      */
     websocket: bool,
-
+    parentEventEmitter: any,
     /**
      * Set the height in pixels for the component.
      * Defaults to `'auto'` if unspecified. When the `height` is `'auto'`,
@@ -315,12 +315,14 @@ export default class LazyLog extends Component {
     } = this.props;
 
     if (isWebsocket) {
-      return websocket(url, websocketOptions);
+      return websocket(url, websocketOptions, );
     }
 
     if (isStream) {
       return stream(url, fetchOptions);
     }
+
+    this.parentEventEmitter.on('newChunk', this.fetchMoreData)
 
     return request(url, fetchOptions);
   }
@@ -356,8 +358,41 @@ export default class LazyLog extends Component {
       this.emitter.off('update', this.handleUpdate);
       this.emitter.off('end', this.handleEnd);
       this.emitter.off('error', this.handleError);
+      this.parentEmitter.off('new-chunk', this.fetchMoreData);
+
       this.emitter = null;
+      this.parentEventEmitter = null;
     }
+  }
+
+  fetchMoreData(chunkNumber){
+    try {
+      const fetch = await fetcher;
+      const response = await fetch(
+        url,        
+        Object.assign({ credentials: 'omit' }, options)
+      );
+
+      if (!response.ok) {
+        const error = new Error(response.statusText);
+
+        error.status = response.status;
+        this.emitter.emit('error', error);
+
+        return;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      const encodedLog = new Uint8Array(arrayBuffer);
+      const { lines, remaining } = convertBufferToLines(encodedLog);
+
+      this.emitter.emit('update', {
+        lines: remaining ? lines.concat(remaining) : lines,
+      });
+      this.emitter.emit('end', encodedLog);      
+    } catch (err) {
+      this.emitter.emit('error', err);
+      this.parentEventEmitter.emit('error', err);
+    }    
   }
 
   handleUpdate = ({ lines: moreLines, encodedLog }) => {

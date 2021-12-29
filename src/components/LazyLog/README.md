@@ -40,7 +40,20 @@ Log viewing using a websocket
 
 ```jsx harmony
 const url = 'wss://echo.websocket.org';
+import mitt from 'mitt';
 let socket = null;
+
+// sse event handling
+emitter.emit('newChunk', 3)
+emitter.on('error', ()=>{
+  
+})
+
+
+
+didMount(()=> {
+  emitter = mitt();
+})
 
 <div>
   <button
@@ -53,6 +66,7 @@ let socket = null;
     enableSearch
     url={url}
     websocket
+    parentEventEmitter={emitter}
     websocketOptions={{
       onOpen: (e, sock) => {
           socket = sock; sock.send(JSON.stringify({message: "Socket has been opened!"}))
